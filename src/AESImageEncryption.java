@@ -73,7 +73,7 @@ public class AESImageEncryption {
         IvParameterSpec iv = generateIV();
 
         // Bilder aus src/ laden
-        File folder = new File("src/");
+        File folder = new File("images/");
         File[] files = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
 
         if (files == null || files.length == 0) {

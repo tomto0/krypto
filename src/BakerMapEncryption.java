@@ -22,7 +22,21 @@ public class BakerMapEncryption {
         return grayImage;
     }
 
-    // Funktion zur Anwendung der Baker Map Transformation
+    // Bildgröße auf gerade Werte setzen
+    public static BufferedImage resizeToEven(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        int newWidth = (width % 2 == 0) ? width : width - 1;
+        int newHeight = (height % 2 == 0) ? height : height - 1;
+
+        BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, image.getType());
+        resizedImage.getGraphics().drawImage(image, 0, 0, newWidth, newHeight, null);
+
+        return resizedImage;
+    }
+
+    // Funktion zur Anwendung der Baker Map Transformation mit zufälliger Permutation
     public static BufferedImage bakerMapTransform(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -31,12 +45,16 @@ public class BakerMapEncryption {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int newX, newY;
-                newX = x / 2 + (x % 2) * (width / 2);
-                if (y < height / 2) {
-                    newY = 2 * y;
+
+                // Correct Baker Map Transformation
+                if (x < width / 2) {
+                    newX = 2 * x;
+                    newY = y / 2;
                 } else {
-                    newY = 2 * (y - height / 2) + 1;
+                    newX = 2 * (x - width / 2) + 1;
+                    newY = height / 2 + y / 2;
                 }
+
                 transformedImage.setRGB(newX, newY, image.getRGB(x, y));
             }
         }
@@ -74,8 +92,8 @@ public class BakerMapEncryption {
             outputFolder.mkdirs();
         }
 
-        // Bilder aus src/ laden
-        File folder = new File("src/");
+        // Bilder aus dem Ordner "images/" laden
+        File folder = new File("images/");
         File[] files = folder.listFiles((_, name) -> name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
 
         if (files == null || files.length == 0) {
@@ -88,6 +106,8 @@ public class BakerMapEncryption {
         for (File file : files) {
             BufferedImage originalImage = ImageIO.read(file);
             BufferedImage grayImage = toGrayscale(originalImage);
+            BufferedImage evenSizedImage = resizeToEven(grayImage);
+            BufferedImage transformedImage = evenSizedImage;
 
             // Speichern und Anzeigen des Graustufenbilds
             ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
@@ -97,7 +117,6 @@ public class BakerMapEncryption {
             System.out.println("Entropie des Originalbildes: " + calculateEntropy(grayImage));
 
             long startTime = System.currentTimeMillis();
-            BufferedImage transformedImage = grayImage;
 
             for (int i = 1; i <= iterations; i++) {
                 transformedImage = bakerMapTransform(transformedImage);
@@ -113,5 +132,4 @@ public class BakerMapEncryption {
             System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
         }
     }
-
 }
