@@ -7,7 +7,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.awt.Color;
 
 public class AESImageEncryption {
@@ -42,7 +41,8 @@ public class AESImageEncryption {
 
         // Padding auf ein Vielfaches von 16 Bytes auffüllen
         int paddedLength = ((pixelData.length + 15) / 16) * 16;
-        byte[] paddedPixels = Arrays.copyOf(pixelData, paddedLength);
+        byte[] paddedPixels = new byte[paddedLength];
+        System.arraycopy(pixelData, 0, paddedPixels, 0, pixelData.length);
 
         // AES-CBC Verschlüsselung initialisieren
         Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
@@ -59,46 +59,6 @@ public class AESImageEncryption {
         }
 
         return encryptedImage;
-    }
-
-    // Funktion zur Umwandlung eines Bildes in ein 8-Bit-Graustufenbild
-    public static BufferedImage toGrayscale(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        BufferedImage grayImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Color color = new Color(image.getRGB(x, y));
-                int gray = (int) (0.299 * color.getRed() + 0.587 * color.getGreen() + 0.114 * color.getBlue());
-                grayImage.setRGB(x, y, new Color(gray, gray, gray).getRGB());
-            }
-        }
-        return grayImage;
-    }
-
-    // Bildentropie berechnen
-    public static double calculateEntropy(BufferedImage image) {
-        int[] histogram = new int[256];
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int totalPixels = width * height;
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int gray = new Color(image.getRGB(x, y)).getRed();
-                histogram[gray]++;
-            }
-        }
-
-        double entropy = 0.0;
-        for (int count : histogram) {
-            if (count > 0) {
-                double probability = (double) count / totalPixels;
-                entropy -= probability * (Math.log(probability) / Math.log(2));
-            }
-        }
-        return entropy;
     }
 
     public static void main(String[] args) throws Exception {
@@ -123,7 +83,7 @@ public class AESImageEncryption {
 
         for (File file : files) {
             BufferedImage originalImage = ImageIO.read(file);
-            BufferedImage grayImage = toGrayscale(originalImage);
+            BufferedImage grayImage = BakerMapEncryption.toGrayscale(originalImage);
 
             ImageViewer.displayImage(grayImage, "Graustufenbild - " + file.getName());
 
@@ -131,7 +91,7 @@ public class AESImageEncryption {
             ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
 
             System.out.println("Verarbeite: " + file.getName());
-            System.out.println("Entropie des Originalbildes: " + calculateEntropy(grayImage));
+            System.out.println("Entropie des Originalbildes: " + BakerMapEncryption.calculateEntropy(grayImage));
 
             long startTime = System.currentTimeMillis();
 
@@ -140,7 +100,7 @@ public class AESImageEncryption {
             ImageIO.write(encryptedImage, "png", new File("output/" + file.getName().replace(".", "_aes.")));
 
             long endTime = System.currentTimeMillis();
-            System.out.println("Entropie nach AES-Verschlüsselung: " + calculateEntropy(encryptedImage));
+            System.out.println("Entropie nach AES-Verschlüsselung: " + BakerMapEncryption.calculateEntropy(encryptedImage));
             System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
 
             // Visualisierung des verschlüsselten Bildes
