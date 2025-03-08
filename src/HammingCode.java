@@ -30,7 +30,7 @@ public class HammingCode {
 
         if (errorPosition > 0) {
             System.out.println("Fehler erkannt an Position: " + errorPosition);
-            received[errorPosition - 1] ^= 1; // Bit korrigieren
+            received[errorPosition - 1] ^= 1; // Bit korrgieren
         } else {
             System.out.println("Kein Fehler gefunden.");
         }

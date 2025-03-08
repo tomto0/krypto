@@ -85,10 +85,10 @@ public class AESImageEncryption {
             BufferedImage originalImage = ImageIO.read(file);
             BufferedImage grayImage = BakerMapEncryption.toGrayscale(originalImage);
 
-            ImageViewer.displayImage(grayImage, "Graustufenbild - " + file.getName());
+           // ImageViewer.displayImage(grayImage, "Graustufenbild - " + file.getName());
 
             // Graustufenbild speichern
-            ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
+            //ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
 
             System.out.println("Verarbeite: " + file.getName());
             System.out.println("Entropie des Originalbildes: " + BakerMapEncryption.calculateEntropy(grayImage));
@@ -97,14 +97,14 @@ public class AESImageEncryption {
 
             // Bild verschlüsseln mit AES-CBC
             BufferedImage encryptedImage = encryptImage(grayImage, aesKey, iv);
-            ImageIO.write(encryptedImage, "png", new File("output/" + file.getName().replace(".", "_aes.")));
+            //ImageIO.write(encryptedImage, "png", new File("output/" + file.getName().replace(".", "_aes.")));
 
             long endTime = System.currentTimeMillis();
             System.out.println("Entropie nach AES-Verschlüsselung: " + BakerMapEncryption.calculateEntropy(encryptedImage));
             System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
 
             // Visualisierung des verschlüsselten Bildes
-            ImageViewer.displayImage(encryptedImage, "AES-Verschlüsseltes Bild - " + file.getName());
+            //ImageViewer.displayImage(encryptedImage, "AES-Verschlüsseltes Bild - " + file.getName());
         }
     }
 }
