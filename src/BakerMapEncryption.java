@@ -105,7 +105,6 @@ public class BakerMapEncryption {
             return;
         }
 
-
         for (File file : files) {
             BufferedImage originalImage = ImageIO.read(file);
             BufferedImage grayImage = toGrayscale(originalImage);
@@ -116,28 +115,36 @@ public class BakerMapEncryption {
             //ImageViewer.displayImage(grayImage, "Original Graustufenbild - " + file.getName());
 
             System.out.println("Verarbeite: " + file.getName());
-            System.out.println("Entropie des Originalbildes: " + calculateEntropy(grayImage));
+            double initialEntropy = calculateEntropy(grayImage);
+            System.out.println("Entropie des Originalbildes: " + initialEntropy);
 
             long startTime = System.currentTimeMillis();
 
             int iteration = 0;
-            double currEntropy = calculateEntropy(grayImage);
+            double currEntropy = initialEntropy;
+            boolean entropyDecreased = false;
 
             while (iteration < 10) {
                 transformedImage = bakerMapTransform(transformedImage);
                 double newEntropy = calculateEntropy(transformedImage);
-                // ImageViewer.displayImage(transformedImage, "Baker Map Iteration " + i);
-                System.out.println("Iteration " + (iteration + 1) + " - Entropie: " + newEntropy);
-                ImageIO.write(transformedImage, "png", new File("output/" + file.getName().replace(".", "_iter" + (iteration + 1) + ".")));
 
                 if (newEntropy <= currEntropy) {
-                    System.out.println("Entropie hat sich zweimal hintereinander nicht geändert oder ist gesunken. Beende Iterationen.");
-                    break;
+                    entropyDecreased = true;
+                    break; // Stop before printing last decreasing/stagnant entropy value
                 }
+
+                //ImageViewer.displayImage(transformedImage, "Baker Map Iteration " + (iteration + 1));
+                System.out.println("Iteration " + (iteration + 1) + " - Entropie: " + newEntropy);
+                ImageIO.write(transformedImage, "png", new File("output/" + file.getName().replace(".", "_iter" + (iteration + 1) + ".")));
 
                 currEntropy = newEntropy;
                 iteration++;
             }
+
+            if (entropyDecreased) {
+                System.out.println("Entropie hat sich zweimal hintereinander nicht geändert oder ist gesunken. Beende Iterationen.");
+            }
+
             long endTime = System.currentTimeMillis();
             System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
         }
