@@ -11,7 +11,7 @@ import java.awt.Color;
 
 public class AESImageEncryption {
 
-    // AES-Schlüssel generieren
+    // AES-Schlüssel generieren (128 Bit)
     private static SecretKey generateAESKey() throws NoSuchAlgorithmException {
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(128); // 128-Bit Schlüssel
@@ -25,40 +25,47 @@ public class AESImageEncryption {
         return new IvParameterSpec(iv);
     }
 
-    // AES-Bildverschlüsselung mit CBC-Modus
+    // Bilddaten in Byte-Array umwandeln (8-Bit Graustufen)
+    private static byte[] imageToByteArray(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        byte[] pixelData = new byte[width * height];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                pixelData[y * width + x] = (byte) new Color(image.getRGB(x, y)).getRed();
+            }
+        }
+        return pixelData;
+    }
+
+    // Byte-Array wieder in Bild umwandeln
+    private static BufferedImage byteArrayToImage(byte[] data, int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int gray = data[y * width + x] & 0xFF;
+                image.setRGB(x, y, new Color(gray, gray, gray).getRGB());
+            }
+        }
+        return image;
+    }
+
+    // AES-Bildverschlüsselung (CBC-Modus mit Standard-Padding)
     public static BufferedImage encryptImage(BufferedImage image, SecretKey key, IvParameterSpec iv) throws Exception {
         int width = image.getWidth();
         int height = image.getHeight();
-        int totalPixels = width * height;
+        byte[] pixelData = imageToByteArray(image);
 
-        // 8-Bit Graustufen-Bilddaten extrahieren
-        byte[] pixelData = new byte[totalPixels];
-        for (int i = 0; i < totalPixels; i++) {
-            int x = i % width;
-            int y = i / width;
-            pixelData[i] = (byte) new Color(image.getRGB(x, y)).getRed();
-        }
-
-        // Padding auf ein Vielfaches von 16 Bytes auffüllen
-        int paddedLength = ((pixelData.length + 15) / 16) * 16;
-        byte[] paddedPixels = new byte[paddedLength];
-        System.arraycopy(pixelData, 0, paddedPixels, 0, pixelData.length);
-
-        // AES-CBC Verschlüsselung initialisieren
-        Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+        // AES-Cipher initialisieren
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-        byte[] encryptedPixels = cipher.doFinal(paddedPixels);
 
-        // Verschlüsseltes Bild erstellen
-        BufferedImage encryptedImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        for (int i = 0; i < totalPixels; i++) {
-            int x = i % width;
-            int y = i / width;
-            int gray = encryptedPixels[i] & 0xFF;
-            encryptedImage.setRGB(x, y, new Color(gray, gray, gray).getRGB());
-        }
+        // Verschlüsselung durchführen
+        byte[] encryptedData = cipher.doFinal(pixelData);
 
-        return encryptedImage;
+        // Verschlüsseltes Bild zurückgeben
+        return byteArrayToImage(encryptedData, width, height);
     }
 
     public static void main(String[] args) throws Exception {
@@ -72,9 +79,8 @@ public class AESImageEncryption {
         SecretKey aesKey = generateAESKey();
         IvParameterSpec iv = generateIV();
 
-        // Bilder aus src/ laden
         File folder = new File("images/");
-        File[] files = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
+        File[] files = folder.listFiles((_, name) -> name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
 
         if (files == null || files.length == 0) {
             System.out.println("Keine Bilder gefunden.");
@@ -85,25 +91,21 @@ public class AESImageEncryption {
             BufferedImage originalImage = ImageIO.read(file);
             BufferedImage grayImage = BakerMapEncryption.toGrayscale(originalImage);
 
-           // ImageViewer.displayImage(grayImage, "Graustufenbild - " + file.getName());
-
-            // Graustufenbild speichern
-            //ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
+            // ImageViewer.displayImage(grayImage, "Graustufenbild - " + file.getName());
+            ImageIO.write(grayImage, "png", new File("output/" + file.getName().replace(".", "_gray.")));
 
             System.out.println("Verarbeite: " + file.getName());
             System.out.println("Entropie des Originalbildes: " + BakerMapEncryption.calculateEntropy(grayImage));
 
             long startTime = System.currentTimeMillis();
 
-            // Bild verschlüsseln mit AES-CBC
+            // Bild mit AES verschlüsseln
             BufferedImage encryptedImage = encryptImage(grayImage, aesKey, iv);
-            //ImageIO.write(encryptedImage, "png", new File("output/" + file.getName().replace(".", "_aes.")));
+            ImageIO.write(encryptedImage, "png", new File("output/" + file.getName().replace(".", "_aes.")));
 
             long endTime = System.currentTimeMillis();
             System.out.println("Entropie nach AES-Verschlüsselung: " + BakerMapEncryption.calculateEntropy(encryptedImage));
             System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
-
-            // Visualisierung des verschlüsselten Bildes
             //ImageViewer.displayImage(encryptedImage, "AES-Verschlüsseltes Bild - " + file.getName());
         }
     }

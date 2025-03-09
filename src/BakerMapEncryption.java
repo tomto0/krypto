@@ -3,10 +3,11 @@ import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Graphics;
 
 public class BakerMapEncryption {
 
-    // Funktion zur Umwandlung eines Bildes in ein 8-Bit-Graustufenbild
+    // Konvertiert ein Bild in 8-Bit Graustufen
     public static BufferedImage toGrayscale(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -22,88 +23,78 @@ public class BakerMapEncryption {
         return grayImage;
     }
 
-    // Bildgröße auf gerade Werte setzen
+    // Passt die Bildgröße an, sodass sie gerade Dimensionen hat
     public static BufferedImage resizeToEven(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-
-        int newWidth = (width % 2 == 0) ? width : width - 1;
-        int newHeight = (height % 2 == 0) ? height : height - 1;
-
-        BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, image.getType());
-        resizedImage.getGraphics().drawImage(image, 0, 0, newWidth, newHeight, null);
-
+        int width = (image.getWidth() % 2 == 0) ? image.getWidth() : image.getWidth() - 1;
+        int height = (image.getHeight() % 2 == 0) ? image.getHeight() : image.getHeight() - 1;
+        BufferedImage resizedImage = new BufferedImage(width, height, image.getType());
+        Graphics g = resizedImage.getGraphics();
+        g.drawImage(image, 0, 0, width, height, null);
+        g.dispose();
         return resizedImage;
     }
 
-    // Funktion zur Anwendung der Baker Map Transformation mit zufälliger Permutation
-    public static BufferedImage bakerMapTransform(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        BufferedImage transformedImage = new BufferedImage(width, height, image.getType());
+    // Wendet die verbesserte Baker-Map-Transformation an
+    public static BufferedImage applyBakerMap(BufferedImage img, int key) {
+        int width = img.getWidth();
+        int height = img.getHeight();
+        BufferedImage transformed = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        int mid = height / 2;
 
-        for (int y = 0; y < height/2; y++) {
+        // Die obere Hälfte des Bildes wird nach unten gestreckt
+        // Die untere Hälfte des Bildes wird gespiegelt und dann auf die freien Stellen gesetzt
+        for (int y = 0; y < mid; y++) {
             for (int x = 0; x < width; x++) {
-                // First half moves to even rows
-                transformedImage.setRGB(x, 2 * y, image.getRGB(x, y));
+                transformed.setRGB(x, 2 * y, img.getRGB(x, y)); // Pixel von oben nach unten kopieren
 
-                // Second half moves to odd rows but also gets a small random shift
-                int newX = (width - x - 1 + (int) (Math.random() * 3 - 1)) % width;
-                transformedImage.setRGB(newX, 2 * y + 1, image.getRGB(x, height - y - 1));
+                // Kleine zufällige Verschiebung basierend auf dem Schlüssel
+                int shift = ((key + x) % 3) - 1;
+                int newX = (width - x - 1 + shift + width) % width;
+                transformed.setRGB(newX, 2 * y + 1, img.getRGB(x, height - y - 1)); // Gespiegelte Pixel platzieren
             }
         }
-        return transformedImage;
+        return transformed;
     }
 
-    // Funktion zur Berechnung der Bildentropie
+    // Berechnet die Shannon-Entropie des Bildes
     public static double calculateEntropy(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
         int totalPixels = width * height;
+        int[] histogram = new int[256]; // Histogramm für Graustufen-Werte (0-255)
 
-        int[] histogram = new int[256];
-
-        for (int i = 0; i < width - 1; i++) {
-            for (int j = 0; j < height - 1; j++) {
-                int pixel1 = new Color(image.getRGB(i, j)).getRed();
-                int pixel2 = new Color(image.getRGB(i + 1, j)).getRed();
-                int pixel3 = new Color(image.getRGB(i, j + 1)).getRed();
-
-                int diff1 = Math.abs(pixel1 - pixel2);
-                int diff2 = Math.abs(pixel1 - pixel3);
-
-                histogram[diff1]++;
-                histogram[diff2]++;
+        // Histogramm des Bildes berechnen
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int gray = new Color(image.getRGB(x, y)).getRed(); // Grauwert extrahieren
+                histogram[gray]++;
             }
         }
 
-        // Shannon Formel - Entropie berechnen
+        // Entropie berechnen basierend auf der Wahrscheinlichkeitsverteilung der Pixelwerte
         double entropy = 0.0;
         for (int count : histogram) {
             if (count > 0) {
-                double probability = (double) count / (2 * totalPixels);
-                entropy -= probability * (Math.log(probability) / Math.log(2));
+                double probability = (double) count / totalPixels;
+                entropy -= probability * (Math.log(probability) / Math.log(2)); // Shannon-Formel anwenden
             }
         }
         return entropy;
     }
 
-
     public static void main(String[] args) throws IOException {
-        // Sicherstellen, dass der Ausgabeordner existiert
         File outputFolder = new File("output/");
-        if (!outputFolder.exists()) {
-            outputFolder.mkdirs();
-        }
+        if (!outputFolder.exists()) outputFolder.mkdirs();
 
-        // Bilder aus dem Ordner "images/" laden
         File folder = new File("images/");
-        File[] files = folder.listFiles((_, name) -> name.toLowerCase().endsWith(".png") || name.toLowerCase().endsWith(".jpg"));
+        File[] files = folder.listFiles((_, name) -> name.toLowerCase().matches(".*\\.(png|jpg)"));
 
         if (files == null || files.length == 0) {
             System.out.println("Keine Bilder gefunden.");
             return;
         }
+
+        int encryptionKey = 1234; // Beispiel-Schlüssel für Reproduzierbarkeit
 
         for (File file : files) {
             BufferedImage originalImage = ImageIO.read(file);
@@ -115,22 +106,18 @@ public class BakerMapEncryption {
             //ImageViewer.displayImage(grayImage, "Original Graustufenbild - " + file.getName());
 
             System.out.println("Verarbeite: " + file.getName());
-            double initialEntropy = calculateEntropy(grayImage);
-            System.out.println("Entropie des Originalbildes: " + initialEntropy);
+            double currEntropy = calculateEntropy(grayImage);
+            System.out.println("Entropie des Originalbildes: " + currEntropy);
 
             long startTime = System.currentTimeMillis();
 
-            int iteration = 0;
-            double currEntropy = initialEntropy;
-            boolean entropyDecreased = false;
-
-            while (iteration < 10) {
-                transformedImage = bakerMapTransform(transformedImage);
+            for (int iteration = 0; iteration < 10; iteration++) {
+                transformedImage = applyBakerMap(transformedImage, encryptionKey);
                 double newEntropy = calculateEntropy(transformedImage);
 
-                if (newEntropy <= currEntropy) {
-                    entropyDecreased = true;
-                    break; // Stop before printing last decreasing/stagnant entropy value
+                if (iteration >= 2 && (newEntropy - currEntropy) / currEntropy < 0.02) {
+                    System.out.println("Entropie hat sich nicht signifikant erhöht. Beende Iterationen.");
+                    break;
                 }
 
                 //ImageViewer.displayImage(transformedImage, "Baker Map Iteration " + (iteration + 1));
@@ -138,15 +125,9 @@ public class BakerMapEncryption {
                 ImageIO.write(transformedImage, "png", new File("output/" + file.getName().replace(".", "_iter" + (iteration + 1) + ".")));
 
                 currEntropy = newEntropy;
-                iteration++;
             }
 
-            if (entropyDecreased) {
-                System.out.println("Entropie hat sich zweimal hintereinander nicht geändert oder ist gesunken. Beende Iterationen.");
-            }
-
-            long endTime = System.currentTimeMillis();
-            System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (endTime - startTime) + " ms\n");
+            System.out.println("Gesamte Laufzeit für " + file.getName() + ": " + (System.currentTimeMillis() - startTime) + " ms\n");
         }
     }
 }
